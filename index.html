@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>住院病人清單自動歸類系統 - 行政分組對照版</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f6f9;
+            color: #333;
+        }
+        .container {
+            max-width: 1400px; /* 加寬佈局以利雙縱列對照 */
+            margin: 0 auto;
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        h2 {
+            color: #004085;
+            border-bottom: 2px solid #004085;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        .upload-section {
+            margin: 15px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 2px dashed #b5bbc1;
+            text-align: center;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .custom-file-upload {
+            display: inline-block;
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #0056b3;
+            color: white;
+            border-radius: 6px;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        .custom-file-upload:hover {
+            background-color: #004085;
+        }
+        #fileName {
+            margin-top: 8px;
+            font-size: 0.9em;
+            color: #495057;
+        }
+        
+        /* 雙縱列區域 CSS */
+        .split-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* 左右平分兩大縱列 */
+            gap: 25px;
+            margin-top: 20px;
+        }
+        @media (max-width: 950px) {
+            .split-layout {
+                grid-template-columns: 1fr; /* 螢幕太小時自動切換為單列 */
+            }
+        }
+        
+        .group-column {
+            background: #fdfdfd;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        .group-1-header {
+            background-color: #e3f2fd;
+            color: #0d47a1;
+            border-left: 6px solid #1565c0;
+        }
+        .group-2-header {
+            background-color: #f3e5f5;
+            color: #4a148c;
+            border-left: 6px solid #6a1b9a;
+        }
+        .group-title-box {
+            padding: 12px 15px;
+            border-radius: 6px;
+            font-size: 1.2em;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .group-total-count {
+            font-size: 1.1em;
+            background: rgba(255,255,255,0.8);
+            padding: 2px 10px;
+            border-radius: 15px;
+        }
+
+        /* 醫師卡片區域 */
+        .cards-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .doctor-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+        }
+        .group-1-card { border-top: 4px solid #1976d2; }
+        .group-2-card { border-top: 4px solid #8e24aa; }
+
+        .doctor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #f1f3f5;
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+        }
+        .doctor-name {
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+        .patient-count {
+            font-size: 1.2em;
+            font-weight: bold;
+            padding: 1px 8px;
+            border-radius: 12px;
+        }
+        .group-1-count { background: #e3f2fd; color: #1565c0; }
+        .group-2-count { background: #f3e5f5; color: #6a1b9a; }
+
+        /* 病人表格 */
+        .patient-table {
+            width: 100%;
+            font-size: 0.85em;
+            border-collapse: collapse;
+        }
+        .patient-table th {
+            text-align: left;
+            color: #6c757d;
+            border-bottom: 1px solid #eee;
+            padding: 4px;
+        }
+        .patient-table td {
+            padding: 5px 4px;
+            border-bottom: 1px solid #f8f9fa;
+            color: #495057;
+        }
+        .bed-no { font-weight: bold; color: #0056b3; }
+        
+        .footer {
+            margin-top: 40px;
+            font-size: 0.85em;
+            color: #6c757d;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🏥 臨床主治醫師-負責病患人數統計系統 (科組雙縱列版)</h2>
+    <p style="color: #6c757d;">請上傳病人清單文字檔 (.txt)。系統會自動對照內部科組名單，將第一組與第二組的醫師分流於左右兩大縱列呈現，方便即時觀察兩組病患 loading 是否平衡。</p>
+    
+    <div class="upload-section">
+        <label class="custom-file-upload">
+            <input type="file" id="fileInput" accept=".txt" />
+            選擇匯出的文字檔 (TXT)
+        </label>
+        <div id="fileName">尚未選擇任何檔案</div>
+    </div>
+
+    <div class="split-layout">
+        
+        <div class="group-column">
+            <div class="group-title-box group-1-header">
+                <span>📘 行政第一組</span>
+                <span class="group-total-count" id="group1Total">總計: 0 人</span>
+            </div>
+            <div class="cards-container" id="group1Cards">
+                <p style="color: #adb5bd; text-align: center; padding: 20px;">等待上傳檔案...</p>
+            </div>
+        </div>
+
+        <div class="group-column">
+            <div class="group-title-box group-2-header">
+                <span>🔮 行政第二組</span>
+                <span class="group-total-count" id="group2Total">總計: 0 人</span>
+            </div>
+            <div class="cards-container" id="group2Cards">
+                <p style="color: #adb5bd; text-align: center; padding: 20px;">等待上傳檔案...</p>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<div class="footer">
+    🔒 本機安全執行環境（Secure Local Environment） • 適用於醫院封閉式白名單網路
+</div>
+
+<script>
+// ====================================================================
+// 🏥 經校正之本院心臟內科主治醫師對照表 (已移除賴醫師測試代碼)
+// ====================================================================
+const DOCTOR_CODE_MAPPING = {
+    // ---- 科組 1 醫師 ----
+    "0034": { group: 1, name: "郭啟泰" },
+    "0510": { group: 1, name: "陳偉踐" },
+    "2079": { group: 1, name: "張其任" },
+    "2089": { group: 1, name: "褚柏顯" },
+    "2233": { group: 1, name: "許隆安" },
+    "2633": { group: 1, name: "賀萬靖" },
+    "3015": { group: 1, name: "王俊力" },
+    "3436": { group: 1, name: "葉勇信" },
+    "3976": { group: 1, name: "林佳濱" },
+    "5009": { group: 1, name: "吳家棟" },
+    "5278": { group: 1, name: "巫龍昇" },
+    "5737": { group: 1, name: "林彥辰" },
+    "7123": { group: 1, name: "詹益欣" },
+    "7195": { group: 1, name: "周星賢" },
+    "7812": { group: 1, name: "董穎璋" },
+    "7977": { group: 1, name: "李廣祚" },
+    "8390": { group: 1, name: "蕭富致" },
+    "8395": { group: 1, name: "顏琨麒" },
+    "0334": { group: 1, name: "何建德" },
+    "0985": { group: 1, name: "徐子哲" },
+    "1199": { group: 1, name: "曾子慈" }, 
+    "1305": { group: 1, name: "鄭郁雯" },
+    "1512": { group: 1, name: "林莞芹" },
+    "1605": { group: 1, name: "謝侑叡" },
+    "2545": { group: 1, name: "陳靖蓉" },
+    "Q368": { group: 1, name: "蔡宗翰" },
+
+    // ---- 科組 2 醫師 ----
+    "0549": { group: 2, name: "王俊傑" },
+    "1449": { group: 2, name: "溫明賢" },
+    "1760": { group: 2, name: "柯毓賢" },
+    "1816": { group: 2, name: "謝宜璋" },
+    "2195": { group: 2, name: "洪國竣" },
+    "2867": { group: 2, name: "周宗川" },
+    "3228": { group: 2, name: "陳俊吉" },
+    "3656": { group: 2, name: "王朝永" }, 
+    "3658": { group: 2, name: "張尚宏" }, 
+    "3995": { group: 2, name: "謝明哲" }, 
+    "5240": { group: 2, name: "張伯丞" }, 
+    "8276": { group: 2, name: "葉日凱" },
+    "2341": { group: 2, name: "謝舒筠" },
+    "1059": { group: 2, name: "張捷宇" }, 
+    "0799": { group: 2, name: "黃昱彰" },
+    "5265": { group: 2, name: "李振宏" },
+    "7172": { group: 2, name: "沃宏達" },
+    "7687": { group: 2, name: "陳東藝" },
+    "8384": { group: 2, name: "何明昀" },
+    "1229": { group: 2, name: "黃逸群" },
+    "1992": { group: 2, name: "邱凱斌" },
+    "2486": { group: 2, name: "陳緯倫" },
+    "2651": { group: 2, name: "賈晉原" },
+    "2694": { group: 2, name: "黃柏棣" },
+    "Q062": { group: 2, name: "張昱政" }
+};
+// ====================================================================
+
+document.getElementById('fileInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    document.getElementById('fileName').textContent = `📁 已載入: ${file.name}`;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        processPatientData(e.target.result);
+    };
+    reader.readAsText(file, 'UTF-8'); 
+});
+
+function processPatientData(text) {
+    const lines = text.split(/\r?\n/);
+    const doctorMap = {};
+
+    lines.forEach(line => {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('==') || trimmed.startsWith('床號') || trimmed.startsWith('[')) return;
+
+        const tokens = trimmed.split(/\s+/);
+        if (tokens.length < 6) return;
+
+        const bedNo = tokens[0];
+        const idAndName = tokens[1];
+        const nameMatch = idAndName.match(/[^\d]+/);
+        const patientName = nameMatch ? nameMatch[0] : idAndName;
+
+        let doctorRawToken = "";
+        let docIndex = -1;
+
+        // 搜尋含有工號與名字的 token
+        for (let i = 2; i < tokens.length; i++) {
+            if (tokens[i].match(/^[A-Z0-9]+[\u4e00-\u9fa5]+/)) {
+                doctorRawToken = tokens[i];
+                docIndex = i;
+                break;
+            }
+        }
+
+        if (!doctorRawToken) return;
+
+        let diagnosis = "未明示";
+        if (docIndex !== -1 && tokens.length > docIndex + 1) {
+            diagnosis = tokens.slice(docIndex + 1).join(' ');
+        }
+
+        const codeMatch = doctorRawToken.match(/^[A-Z0-9]+/);
+        const docCode = codeMatch ? codeMatch[0] : "";
+
+        // ⚠️ 排除沒有列在對照表內部的測試或無效資料 (如 TLAI測試外籍 等)
+        if (!DOCTOR_CODE_MAPPING[docCode]) return;
+
+        if (!doctorMap[doctorRawToken]) {
+            doctorMap[doctorRawToken] = {
+                code: docCode,
+                patients: []
+            };
+        }
+        
+        doctorMap[doctorRawToken].patients.push({
+            bed: bedNo,
+            name: patientName,
+            dx: diagnosis
+        });
+    });
+
+    displayGroupedResults(doctorMap);
+}
+
+function displayGroupedResults(doctorMap) {
+    const g1CardsContainer = document.getElementById('group1Cards');
+    const g2CardsContainer = document.getElementById('group2Cards');
+    
+    g1CardsContainer.innerHTML = '';
+    g2CardsContainer.innerHTML = '';
+
+    let g1TotalPatients = 0;
+    let g2TotalPatients = 0;
+
+    const sortedDoctors = Object.keys(doctorMap).sort();
+
+    sortedDoctors.forEach(docToken => {
+        const docInfo = doctorMap[docToken];
+        const patients = docInfo.patients;
+        const code = docInfo.code;
+        
+        let targetGroup = DOCTOR_CODE_MAPPING[code].group;
+
+        if (targetGroup === 1) {
+            g1TotalPatients += patients.length;
+        } else {
+            g2TotalPatients += patients.length;
+        }
+
+        const card = document.createElement('div');
+        card.className = `doctor-card ${targetGroup === 1 ? 'group-1-card' : 'group-2-card'}`;
+
+        let tableRows = '';
+        patients.forEach(p => {
+            tableRows += `
+                <tr>
+                    <td class="bed-no">${escapeHtml(p.bed)}</td>
+                    <td>${escapeHtml(p.name)}</td>
+                    <td title="${escapeHtml(p.dx)}">${escapeHtml(p.dx.substring(0, 9))}${p.dx.length > 9 ? '...' : ''}</td>
+                </tr>
+            `;
+        });
+
+        card.innerHTML = `
+            <div class="doctor-header">
+                <div class="doctor-name">👤 ${escapeHtml(docToken)}</div>
+                <div class="patient-count ${targetGroup === 1 ? 'group-1-count' : 'group-2-count'}">${patients.length} 人</div>
+            </div>
+            <table class="patient-table">
+                <thead>
+                    <tr>
+                        <th style="width: 25%">床號</th>
+                        <th style="width: 30%">姓名</th>
+                        <th style="width: 45%">主診斷</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${tableRows}
+                </tbody>
+            </table>
+        `;
+
+        if (targetGroup === 1) {
+            g1CardsContainer.appendChild(card);
+        } else {
+            g2CardsContainer.appendChild(card);
+        }
+    });
+
+    document.getElementById('group1Total').textContent = `總計: ${g1TotalPatients} 人`;
+    document.getElementById('group2Total').textContent = `總計: ${g2TotalPatients} 人`;
+
+    if (g1CardsContainer.children.length === 0) g1CardsContainer.innerHTML = '<p style="color:#adb5bd;text-align:center;padding:20px;">第一組目前無病人</p>';
+    if (g2CardsContainer.children.length === 0) g2CardsContainer.innerHTML = '<p style="color:#adb5bd;text-align:center;padding:20px;">第二組目前無病人</p>';
+}
+
+function escapeHtml(text) {
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+</script>
+
+</body>
+</html>
