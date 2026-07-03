@@ -424,8 +424,11 @@ function displayGroupedResults(doctorMap) {
     if (g2CardsContainer.children.length === 0) g2CardsContainer.innerHTML = '<p style="color:#adb5bd;text-align:center;padding:20px;">第二組目前無病人</p>';
 }
 
+// 🛡️ 新增的安全防禦與編碼函式，避免 XSS 攻擊或未定義錯誤
 function escapeHtml(text) {
+    if (!text) return '';
     return text
+        .toString()
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
