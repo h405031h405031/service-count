@@ -234,13 +234,13 @@
 
 <script>
 // ====================================================================
-// 🏥 經校正之本院心臟內科主治醫師對照表
+// 🏥 經校正之本院心臟內科主治醫師對照表 (已確認張醫師與黃醫師編組)
 // ====================================================================
 const DOCTOR_CODE_MAPPING = {
     // ---- 科組 1 醫師 ----
     "0034": { group: 1, name: "郭啟泰" },
     "0510": { group: 1, name: "陳偉踐" },
-    "2079": { group: 1, name: "張其任" },
+    "2079": { group: 1, name: "張其任" }, // 張醫師確認為第1組
     "2089": { group: 1, name: "褚柏顯" },
     "2233": { group: 1, name: "許隆安" },
     "2633": { group: 1, name: "賀萬靖" },
@@ -280,7 +280,7 @@ const DOCTOR_CODE_MAPPING = {
     "8276": { group: 2, name: "葉日凱" },
     "2341": { group: 2, name: "謝舒筠" },
     "1059": { group: 2, name: "張捷宇" }, 
-    "0799": { group: 2, name: "黃昱彰" },
+    "0799": { group: 2, name: "黃昱彰" }, // 黃醫師確認為第2組
     "5265": { group: 2, name: "李振宏" },
     "7172": { group: 2, name: "沃宏達" },
     "7687": { group: 2, name: "陳東藝" },
@@ -292,8 +292,8 @@ const DOCTOR_CODE_MAPPING = {
     "2694": { group: 2, name: "黃柏棣" },
     "Q062": { group: 2, name: "張昱政" }
 };
-// ====================================================================
 
+// ====================================================================
 let loadedFileContent = "";
 
 document.getElementById('fileInput').addEventListener('change', function(e) {
@@ -321,6 +321,12 @@ document.getElementById('processBtn').addEventListener('click', function() {
 });
 
 function processPatientData(text) {
+    // 【優化防呆】每次重新點擊整理時，先將畫面元件與計數清空
+    document.getElementById('group1Cards').innerHTML = '';
+    document.getElementById('group2Cards').innerHTML = '';
+    document.getElementById('group1Total').textContent = '總計: 0 人';
+    document.getElementById('group2Total').textContent = '總計: 0 人';
+
     const lines = text.split(/\r?\n/);
     const doctorMap = {};
     let parsedCount = 0;
@@ -363,11 +369,11 @@ function processPatientData(text) {
                 diagnosis = tokens.slice(docIndex + 1).join(' ');
             }
 
-            // 提取 4 碼工號
+            // 提取工號
             const codeMatch = doctorRawToken.match(/^[A-Z0-9]+/);
             const docCode = codeMatch ? codeMatch[0] : "";
 
-            // 若醫師未存在對照表中（如測試碼或外科醫師），則過濾不顯示
+            // 若醫師未存在對照表中（如測試代碼或外科醫師），則過濾不顯示
             if (!DOCTOR_CODE_MAPPING[docCode]) return;
 
             parsedCount++; // 成功計數
@@ -389,6 +395,10 @@ function processPatientData(text) {
 
     if (parsedCount === 0) {
         alert("⚠️ 整理完成，但未成功解析任何有效病人資料！\n請檢查檔案格式。");
+        // 回復成初始預設字樣
+        document.getElementById('group1Cards').innerHTML = '<p style="color: #adb5bd; text-align: center; padding: 20px;">等待上傳檔案並點擊開始整理...</p>';
+        document.getElementById('group2Cards').innerHTML = '<p style="color: #adb5bd; text-align: center; padding: 20px;">等待上傳檔案並點擊開始整理...</p>';
+        return;
     }
 
     displayGroupedResults(doctorMap);
@@ -404,6 +414,7 @@ function displayGroupedResults(doctorMap) {
     let g1TotalPatients = 0;
     let g2TotalPatients = 0;
 
+    // 將醫師依照工號或代碼排序
     const sortedDoctors = Object.keys(doctorMap).sort();
 
     sortedDoctors.forEach(docToken => {
