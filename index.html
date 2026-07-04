@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>住院病人清單自動歸類系統 - 分組對照版</title>
+    <title>住院病人清單自動歸類系統 - 行政分組對照版</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -103,7 +103,7 @@
             color: #856404;
             font-weight: bold;
         }
-
+ 
         .split-layout {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -115,7 +115,7 @@
                 grid-template-columns: 1fr;
             }
         }
-
+ 
         .group-column {
             background: #fdfdfd;
             border: 1px solid #e2e8f0;
@@ -149,7 +149,7 @@
             padding: 2px 10px;
             border-radius: 15px;
         }
-
+ 
         .cards-container {
             display: flex;
             flex-direction: column;
@@ -164,7 +164,7 @@
         }
         .group-1-card { border-top: 4px solid #1976d2; }
         .group-2-card { border-top: 4px solid #8e24aa; }
-
+ 
         .doctor-header {
             display: flex;
             justify-content: space-between;
@@ -186,7 +186,7 @@
         }
         .group-1-count { background: #e3f2fd; color: #1565c0; }
         .group-2-count { background: #f3e5f5; color: #6a1b9a; }
-
+ 
         .bed-list {
             font-size: 0.95em;
             color: #0056b3;
@@ -194,7 +194,7 @@
             line-height: 1.6;
             word-break: break-all;
         }
-
+ 
         .unmatched-box {
             margin-top: 20px;
             padding: 12px 15px;
@@ -214,7 +214,7 @@
             overflow-y: auto;
             margin-top: 8px;
         }
-
+ 
         .footer {
             margin-top: 40px;
             font-size: 0.85em;
@@ -224,11 +224,11 @@
     </style>
 </head>
 <body>
-
+ 
 <div class="container">
     <h2>🏥 臨床主治醫師-負責病患人數統計系統 (科組雙縱列版)</h2>
     <p style="color: #6c757d;">請選取病人清單文字檔 (.txt)，接著點擊右側的「▶ 開始整理」按鈕。</p>
-
+ 
     <div class="upload-section">
         <label class="custom-file-upload">
             <input type="file" id="fileInput" accept=".txt" />
@@ -236,49 +236,50 @@
         </label>
         <button id="processBtn" class="btn-process" disabled>▶ 開始整理</button>
         <div id="fileName">尚未選擇任何檔案</div>
-
+ 
         <div class="paste-divider">— 或 —</div>
         <textarea id="pasteInput" class="paste-textarea" placeholder="也可以直接把病人清單內容貼在這裡（貼上後即可按「開始整理」，不需要上傳檔案）"></textarea>
-
+ 
         <div id="parseSummary"></div>
     </div>
-
+ 
     <div class="split-layout">
-
+ 
         <div class="group-column">
             <div class="group-title-box group-1-header">
-                <span>📘 一組</span>
+                <span>📘 行政第一組</span>
                 <span class="group-total-count" id="group1Total">總計: 0 人</span>
             </div>
             <div class="cards-container" id="group1Cards">
                 <p style="color: #adb5bd; text-align: center; padding: 20px;">等待上傳檔案並點擊開始整理...</p>
             </div>
         </div>
-
+ 
         <div class="group-column">
             <div class="group-title-box group-2-header">
-                <span>🔮 二組</span>
+                <span>🔮 行政第二組</span>
                 <span class="group-total-count" id="group2Total">總計: 0 人</span>
             </div>
             <div class="cards-container" id="group2Cards">
                 <p style="color: #adb5bd; text-align: center; padding: 20px;">等待上傳檔案並點擊開始整理...</p>
             </div>
         </div>
-
+ 
     </div>
-
+ 
     <details class="unmatched-box" id="unmatchedBox">
         <summary>⚠️ 有病患行未能歸類到任何醫師（點擊展開查看原始內容）</summary>
         <pre id="unmatchedList"></pre>
     </details>
 </div>
-
+ 
 <div class="footer">
     🔒 本機安全執行環境（Secure Local Environment） • 適用於醫院封閉式白名單網路
 </div>
-
+ 
 <script>
 // ====================================================================
+// 🏥 經校正之本院心臟內科主治醫師對照表 (已確認張醫師與黃醫師編組)
 // ====================================================================
 const DOCTOR_CODE_MAPPING = {
     // ---- 科組 1 醫師 ----
@@ -308,7 +309,7 @@ const DOCTOR_CODE_MAPPING = {
     "1605": { group: 1, name: "謝侑叡" },
     "2545": { group: 1, name: "陳靖蓉" },
     "Q368": { group: 1, name: "蔡宗翰" },
-
+ 
     // ---- 科組 2 醫師 ----
     "0549": { group: 2, name: "王俊傑" },
     "1449": { group: 2, name: "溫明賢" },
@@ -336,43 +337,43 @@ const DOCTOR_CODE_MAPPING = {
     "2694": { group: 2, name: "黃柏棣" },
     "Q062": { group: 2, name: "張昱政" }
 };
-
+ 
 // ====================================================================
 let loadedFileContent = "";
-
+ 
 document.getElementById('fileInput').addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (!file) return;
-
+ 
     document.getElementById('fileName').textContent = `📁 已載入: ${file.name}`;
     document.getElementById('processBtn').disabled = false;
     loadedFileContent = "";
-
+ 
     const reader = new FileReader();
     reader.onload = function(e) {
         loadedFileContent = e.target.result;
     };
     reader.readAsText(file, 'UTF-8');
 });
-
+ 
 document.getElementById('pasteInput').addEventListener('input', function() {
     if (this.value.trim()) {
         document.getElementById('processBtn').disabled = false;
     }
 });
-
+ 
 document.getElementById('processBtn').addEventListener('click', function() {
     // 貼上的內容優先於已上傳的檔案內容
     const pasteContent = document.getElementById('pasteInput').value;
     const contentToProcess = pasteContent.trim() ? pasteContent : loadedFileContent;
-
+ 
     if (!contentToProcess) {
         alert("請先選擇檔案，或在下方欄位貼上病人清單內容！");
         return;
     }
     processPatientData(contentToProcess);
 });
-
+ 
 function processPatientData(text) {
     document.getElementById('group1Cards').innerHTML = '';
     document.getElementById('group2Cards').innerHTML = '';
@@ -381,37 +382,37 @@ function processPatientData(text) {
     document.getElementById('parseSummary').textContent = '';
     document.getElementById('unmatchedBox').classList.remove('show');
     document.getElementById('unmatchedList').textContent = '';
-
+ 
     const lines = text.split(/\r?\n/);
     const doctorMap = {};
     let parsedCount = 0;
     let candidateLineCount = 0;
     const unmatchedLines = [];
-
+ 
     lines.forEach((line) => {
         const trimmed = line.trim();
         // 排除空行、分隔線、報表標頭與 [ 開頭的醫囑/病危通知備註行
         if (!trimmed || trimmed.startsWith('==') || trimmed.startsWith('床號') || trimmed.startsWith('[')) return;
-
+ 
         // 只要開頭符合床號特徵（英數字）才視為候選病人資料行
         if (!trimmed.match(/^[A-Z0-9]+/)) return;
-
+ 
         const tokens = trimmed.split(/\s+/);
         if (tokens.length < 4) return;
-
+ 
         candidateLineCount++;
-
+ 
         const bedNo = tokens[0];
         const idAndName = tokens[1];
-
+ 
         // 提取純姓名
         const nameMatch = idAndName.match(/[^\d]+/);
         const patientName = nameMatch ? nameMatch[0] : idAndName;
-
+ 
         let doctorRawToken = "";
         let docIndex = -1;
         let docCode = "";
-
+ 
         // 【修正重點】掃描每個候選 token，格式須為「4碼英數字代碼 + 中文姓名」，
         // 且該代碼必須實際存在於 DOCTOR_CODE_MAPPING 對照表中才算數。
         // 這避免了像「32女」（年齡+性別）這種同樣符合「英數字+中文」外觀、
@@ -426,42 +427,42 @@ function processPatientData(text) {
                 break;
             }
         }
-
+ 
         // 找不到對應醫師（含：本院對照表未收錄的醫師代碼），記錄下來但不中斷
         if (!doctorRawToken) {
             unmatchedLines.push(trimmed);
             return;
         }
-
+ 
         // 擷取主診斷：醫師 Token 之後的所有剩餘文字結合
         let diagnosis = "未明示";
         if (docIndex !== -1 && tokens.length > docIndex + 1) {
             diagnosis = tokens.slice(docIndex + 1).join(' ');
         }
-
+ 
         parsedCount++;
-
+ 
         if (!doctorMap[doctorRawToken]) {
             doctorMap[doctorRawToken] = {
                 code: docCode,
                 patients: []
             };
         }
-
+ 
         doctorMap[doctorRawToken].patients.push({
             bed: bedNo,
             name: patientName,
             dx: diagnosis
         });
     });
-
+ 
     if (parsedCount === 0) {
         alert("⚠️ 整理完成，但未成功解析任何有效病人資料！\n請檢查檔案格式。");
         document.getElementById('group1Cards').innerHTML = '<p style="color: #adb5bd; text-align: center; padding: 20px;">等待上傳檔案並點擊開始整理...</p>';
         document.getElementById('group2Cards').innerHTML = '<p style="color: #adb5bd; text-align: center; padding: 20px;">等待上傳檔案並點擊開始整理...</p>';
         return;
     }
-
+ 
     // 顯示解析摘要，讓使用者一眼看出是否有漏網之魚
     if (unmatchedLines.length > 0) {
         document.getElementById('parseSummary').textContent =
@@ -471,40 +472,40 @@ function processPatientData(text) {
     } else {
         document.getElementById('parseSummary').textContent = `共成功歸類 ${parsedCount} 筆病人資料`;
     }
-
+ 
     displayGroupedResults(doctorMap);
 }
-
+ 
 function displayGroupedResults(doctorMap) {
     const g1CardsContainer = document.getElementById('group1Cards');
     const g2CardsContainer = document.getElementById('group2Cards');
-
+ 
     g1CardsContainer.innerHTML = '';
     g2CardsContainer.innerHTML = '';
-
+ 
     let g1TotalPatients = 0;
     let g2TotalPatients = 0;
-
+ 
     const sortedDoctors = Object.keys(doctorMap).sort();
-
+ 
     sortedDoctors.forEach(docToken => {
         const docInfo = doctorMap[docToken];
         const patients = docInfo.patients;
         const code = docInfo.code;
-
+ 
         let targetGroup = DOCTOR_CODE_MAPPING[code].group;
-
+ 
         if (targetGroup === 1) {
             g1TotalPatients += patients.length;
         } else {
             g2TotalPatients += patients.length;
         }
-
+ 
         const card = document.createElement('div');
         card.className = `doctor-card ${targetGroup === 1 ? 'group-1-card' : 'group-2-card'}`;
-
+ 
         const bedList = patients.map(p => escapeHtml(p.bed)).join('、');
-
+ 
         card.innerHTML = `
             <div class="doctor-header">
                 <div class="doctor-name">👤 ${escapeHtml(DOCTOR_CODE_MAPPING[code].name)} (${escapeHtml(code)})</div>
@@ -512,21 +513,21 @@ function displayGroupedResults(doctorMap) {
             </div>
             <div class="bed-list">${bedList}</div>
         `;
-
+ 
         if (targetGroup === 1) {
             g1CardsContainer.appendChild(card);
         } else {
             g2CardsContainer.appendChild(card);
         }
     });
-
+ 
     document.getElementById('group1Total').textContent = `總計: ${g1TotalPatients} 人`;
     document.getElementById('group2Total').textContent = `總計: ${g2TotalPatients} 人`;
-
+ 
     if (g1CardsContainer.children.length === 0) g1CardsContainer.innerHTML = '<p style="color:#adb5bd;text-align:center;padding:20px;">第一組目前無病人</p>';
     if (g2CardsContainer.children.length === 0) g2CardsContainer.innerHTML = '<p style="color:#adb5bd;text-align:center;padding:20px;">第二組目前無病人</p>';
 }
-
+ 
 function escapeHtml(text) {
     if (!text) return '';
     return text
@@ -538,6 +539,6 @@ function escapeHtml(text) {
         .replace(/'/g, "&#039;");
 }
 </script>
-
+ 
 </body>
 </html>
